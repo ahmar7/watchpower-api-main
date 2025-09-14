@@ -26,13 +26,23 @@ print(USERNAMES, PASSWORD, SERIAL_NUMBER, WIFI_PN, DEV_CODE, DEV_ADDR)
 
 app = FastAPI()
 
+ 
+allowed_origins = [
+    "http://127.0.0.1:5502",
+    "http://127.0.0.1:5504",
+    "http://127.0.0.1:5503",
+    "http://localhost:3000",
+    "https://example.com",
+    "https://www.example.org",
+    "http://192.168.1.10:8080"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5503"],
+    allow_origins=allowed_origins,  # multiple domains here
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # WatchPower API instance
 wp = WatchPowerAPI()
 wp.login(USERNAMES, PASSWORD)  # mandatory login
