@@ -14,7 +14,7 @@ requests = ">=2.25.0"
 [tool.poetry.group.examples.dependencies]
 python-dotenv = "^1.0.1"
 pandas = "2.3"
-uvicorn[standard] = "0.30.6"
+uvicorn = "0.30.6"
 tqdm = "^4.67.1"
 
 [tool.poetry.group.dev.dependencies]
