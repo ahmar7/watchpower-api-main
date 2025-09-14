@@ -64,7 +64,7 @@
         loader.style.display = 'flex';
         chartEl.style.display = 'none';
         try {
-            const res = await fetch(`http://127.0.0.1:8000/stats?date=${date}`);
+            const res = await fetch(`https://watchpower-api-main-1.onrender.com/stats?date=${date}`);
             const data = await res.json();
 
             if (data.success) {

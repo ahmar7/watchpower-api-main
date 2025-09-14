@@ -32,9 +32,9 @@ allowed_origins = [
     "http://127.0.0.1:5504",
     "http://127.0.0.1:5503",
     "http://localhost:3000",
-    "https://example.com",
-    "https://www.example.org",
-    "http://192.168.1.10:8080"
+    "http://localhost:3001",
+    "http://localhost:3002",
+     
 ]
 
 app.add_middleware(
