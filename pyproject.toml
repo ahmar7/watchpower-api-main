@@ -16,6 +16,7 @@ python-dotenv = "^1.0.1"
 pandas = "2.3"
 uvicorn = "0.30.6"
 tqdm = "^4.67.1"
+fastapi = "0.115.0"
 
 [tool.poetry.group.dev.dependencies]
 python-semantic-release = "^9.15.2"
