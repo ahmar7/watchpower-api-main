@@ -278,7 +278,7 @@ def stats_range(
     """
     Get solar stats between two dates (inclusive).
     Example:
-      /stats-range?from=2025-09-01&to=2025-09-14
+      /stats-range?from_date=2025-09-01&to_date=2025-09-14
     """
     try:
         start = datetime.datetime.strptime(from_date, "%Y-%m-%d").date()
@@ -293,50 +293,60 @@ def stats_range(
 
         current = start
         while current <= end:
-            # fetch daily data
-            data = wp.get_daily_data(
-                day=current,
-                serial_number=SERIAL_NUMBER,
-                wifi_pn=WIFI_PN,
-                dev_code=DEV_CODE,
-                dev_addr=DEV_ADDR
-            )
+            try:
+                # try to fetch daily data
+                data = wp.get_daily_data(
+                    day=current,
+                    serial_number=SERIAL_NUMBER,
+                    wifi_pn=WIFI_PN,
+                    dev_code=DEV_CODE,
+                    dev_addr=DEV_ADDR
+                )
 
-            rows = data.get("dat", {}).get("row", [])
-            pv_wh = 0
-            load_wh = 0
-            interval_hours = 5/60
+                rows = data.get("dat", {}).get("row", [])
+                pv_wh = 0
+                load_wh = 0
+                interval_hours = 5/60
 
-            for rec in rows:
-                fields = rec.get("field", [])
-                if len(fields) < 22:
-                    continue
+                for rec in rows:
+                    fields = rec.get("field", [])
+                    if len(fields) < 22:
+                        continue
 
-                timestamp = fields[1]
-                if not timestamp.startswith(str(current)):
-                    continue
+                    timestamp = fields[1]
+                    if not timestamp.startswith(str(current)):
+                        continue
 
-                try:
-                    pv_power = float(fields[11]) if fields[11] else 0.0
-                except:
-                    pv_power = 0.0
+                    try:
+                        pv_power = float(fields[11]) if fields[11] else 0.0
+                    except:
+                        pv_power = 0.0
 
-                try:
-                    load_power = float(fields[21]) if fields[21] else 0.0
-                except:
-                    load_power = 0.0
+                    try:
+                        load_power = float(fields[21]) if fields[21] else 0.0
+                    except:
+                        load_power = 0.0
 
-                pv_wh += pv_power * interval_hours
-                load_wh += load_power * interval_hours
+                    pv_wh += pv_power * interval_hours
+                    load_wh += load_power * interval_hours
 
-            total_prod_wh += pv_wh
-            total_load_wh += load_wh
+                total_prod_wh += pv_wh
+                total_load_wh += load_wh
 
-            daily_stats.append({
-                "date": str(current),
-                "production_kwh": round(pv_wh/1000, 2),
-                "load_kwh": round(load_wh/1000, 2)
-            })
+                daily_stats.append({
+                    "date": str(current),
+                    "production_kwh": round(pv_wh/1000, 2),
+                    "load_kwh": round(load_wh/1000, 2)
+                })
+
+            except Exception as e:
+                # agar us din ka data hi nahi mila
+                daily_stats.append({
+                    "date": str(current),
+                    "production_kwh": None,
+                    "load_kwh": None,
+                    "error": str(e)
+                })
 
             current += datetime.timedelta(days=1)
 
