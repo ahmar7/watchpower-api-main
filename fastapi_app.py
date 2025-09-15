@@ -4,7 +4,7 @@ import os
 from fastapi.middleware.cors import CORSMiddleware
 import datetime
 from watchpower_api import WatchPowerAPI
-
+from typing import List
 # Load env variables
 load_dotenv()
 
@@ -244,11 +244,16 @@ def get_stats(date: str = Query(default=datetime.date.today().strftime("%Y-%m-%d
                 load_power = float(fields[21]) if fields[21] not in ["", None] else 0.0
             except:
                 load_power = 0.0
+            try:
+                mode = str(fields[47]) if fields[47] not in ["", None] else 0.0
+            except:
+                mode = 0.0
 
             graph.append({
                 "time": timestamp[-8:],  # HH:MM:SS
                 "pv_power": pv_power,
-                "load_power": load_power
+                "load_power": load_power,
+                "mode":mode
             })
 
             # 5 min interval = 0.0833 hr
@@ -261,6 +266,87 @@ def get_stats(date: str = Query(default=datetime.date.today().strftime("%Y-%m-%d
             "total_production_kwh": round(total_production_wh / 1000, 3),
             "total_load_kwh": round(total_load_wh / 1000, 3),
             "graph": graph
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+@app.get("/stats-range")
+def stats_range(
+    from_date: str = Query(..., description="Start date YYYY-MM-DD"),
+    to_date: str = Query(..., description="End date YYYY-MM-DD")
+):
+    """
+    Get solar stats between two dates (inclusive).
+    Example:
+      /stats-range?from=2025-09-01&to=2025-09-14
+    """
+    try:
+        start = datetime.datetime.strptime(from_date, "%Y-%m-%d").date()
+        end = datetime.datetime.strptime(to_date, "%Y-%m-%d").date()
+
+        if start > end:
+            return {"success": False, "error": "from_date must be <= to_date"}
+
+        total_prod_wh = 0
+        total_load_wh = 0
+        daily_stats = []
+
+        current = start
+        while current <= end:
+            # fetch daily data
+            data = wp.get_daily_data(
+                day=current,
+                serial_number=SERIAL_NUMBER,
+                wifi_pn=WIFI_PN,
+                dev_code=DEV_CODE,
+                dev_addr=DEV_ADDR
+            )
+
+            rows = data.get("dat", {}).get("row", [])
+            pv_wh = 0
+            load_wh = 0
+            interval_hours = 5/60
+
+            for rec in rows:
+                fields = rec.get("field", [])
+                if len(fields) < 22:
+                    continue
+
+                timestamp = fields[1]
+                if not timestamp.startswith(str(current)):
+                    continue
+
+                try:
+                    pv_power = float(fields[11]) if fields[11] else 0.0
+                except:
+                    pv_power = 0.0
+
+                try:
+                    load_power = float(fields[21]) if fields[21] else 0.0
+                except:
+                    load_power = 0.0
+
+                pv_wh += pv_power * interval_hours
+                load_wh += load_power * interval_hours
+
+            total_prod_wh += pv_wh
+            total_load_wh += load_wh
+
+            daily_stats.append({
+                "date": str(current),
+                "production_kwh": round(pv_wh/1000, 2),
+                "load_kwh": round(load_wh/1000, 2)
+            })
+
+            current += datetime.timedelta(days=1)
+
+        return {
+            "success": True,
+            "from": from_date,
+            "to": to_date,
+            "total_production_kwh": round(total_prod_wh/1000, 2),
+            "total_load_kwh": round(total_load_wh/1000, 2),
+            "daily": daily_stats
         }
 
     except Exception as e:
