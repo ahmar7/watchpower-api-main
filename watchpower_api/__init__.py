@@ -68,7 +68,7 @@ class WatchPowerAPI:
 
         url = self._BASE_URL + f"?sign={sign}&salt={salt}" + base_action
 
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=100)
 
         response_data: dict[str, Any] = response.json()
 
