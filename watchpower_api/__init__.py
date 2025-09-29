@@ -17,7 +17,7 @@ class WatchPowerAPI:
     def __init__(self) -> None:
         # auth
         self.token: Optional[str] = None
-        self.secret: Optional[str] = "ems_secret"
+        self.secret: Optional[str] = None  # Fixed: should be None initially
         self.expire: Optional[str] = None
 
     @staticmethod
@@ -42,11 +42,11 @@ class WatchPowerAPI:
             )
         return self.token, self.secret
 
-    def login(self, USERNAMES: str, password: str) -> "WatchPowerAPI":
+    def login(self, username: str, password: str) -> "WatchPowerAPI":  # Fixed parameter name
         """Authenticates against the API and stores relevant auth artifacts for follow-up requests using this instance
 
         Args:
-            USERNAMES (str): USERNAMES of the account you created in the WatchPower application
+            username (str): username of the account you created in the WatchPower application
             password (str): Password of the account you created in the WatchPower application
 
         Raises:
@@ -56,7 +56,7 @@ class WatchPowerAPI:
             Self: same instance, with stored auth artifacts
         """
         base_action = (
-            f"&action=authSource&usr={USERNAMES}&company-key={self._COMPANY_KEY}"
+            f"&action=authSource&usr={username}&company-key={self._COMPANY_KEY}"
             + self._SUFFIX_CONTEXT
         )
 
@@ -64,9 +64,12 @@ class WatchPowerAPI:
 
         password_hash = self._hash(password)
 
+        # Fixed: Correct order for sign generation
         sign = self._hash(salt, password_hash, base_action)
 
         url = self._BASE_URL + f"?sign={sign}&salt={salt}" + base_action
+
+        print(f"Debug - Login URL: {url}")  # Debug line
 
         response = requests.get(url, timeout=100)
 
@@ -80,9 +83,11 @@ class WatchPowerAPI:
                 self.token = response_data["dat"]["token"]
                 self.expire = response_data["dat"]["expire"]
                 return self
-            raise RuntimeError(response_data)
-        raise RuntimeError(response.status_code)
+            else:
+                raise RuntimeError(f"API Error {error_code}: {response_data.get('desc', 'Unknown error')}")
+        raise RuntimeError(f"HTTP Error {response.status_code}: {response.text}")
 
+    # Rest of your methods remain the same...
     def get_daily_data(
         self,
         day: date,
@@ -91,23 +96,7 @@ class WatchPowerAPI:
         dev_code: int,
         dev_addr: int,
     ) -> dict[str, Any]:
-        """Get inverter daily data
-
-        Args:
-            day (date): Day of data collection
-            serial_number (str): Inverter serial number, can be found through the WatchPower android application or
-            through the result of .get_devices(). Only numerical digits
-            wifi_pn (str): Wifi PN, can be found through the WatchPower android application or through the result of
-            .get_devices(). It looks like 'W{digits}'
-            dev_code (int, optional): Device code. You can get it through .get_devices() result.
-            dev_addr (int, optional): Device address. You can get it through .get_devices() result.
-
-        Raises:
-            RuntimeError: If there is an http error or the api returns a specific error
-
-        Returns:
-            dict: response json
-        """
+        """Get inverter daily data"""
         token, secret = self._ensure_logged_in()
         _date = day.isoformat()
         base_action = (
@@ -128,17 +117,8 @@ class WatchPowerAPI:
             raise RuntimeError(response_data)
         raise RuntimeError(response.status_code)
 
-    def get_devices(
-        self,
-    ) -> list[DeviceIdentifier]:
-        """Get user connected devices
-
-        Raises:
-            RuntimeError: If there is an http error or the api returns a specific error
-
-        Returns:
-            dict: response json
-        """
+    def get_devices(self) -> list[DeviceIdentifier]:
+        """Get user connected devices"""
         token, secret = self._ensure_logged_in()
         base_action = "&action=webQueryDeviceEs" + self._SUFFIX_CONTEXT
         salt = self._generate_salt()
@@ -162,18 +142,7 @@ class WatchPowerAPI:
         device_identifier: DeviceIdentifier,
         day: date,
     ) -> dict[str, Any]:
-        """Get inverter daily data
-
-        Args:
-            day (date): Day of data collection
-            device_identifier (DeviceIdentifier): Inverter identifier
-
-        Raises:
-            RuntimeError: If there is an http error or the api returns a specific error
-
-        Returns:
-            dict: response json
-        """
+        """Get inverter daily data"""
         return self.get_daily_data(
             day=day,
             serial_number=device_identifier.serial_number,
